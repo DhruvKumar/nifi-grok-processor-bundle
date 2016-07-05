@@ -36,8 +36,15 @@ import org.apache.nifi.processor.io.InputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.stream.io.StreamUtils;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
@@ -110,12 +117,13 @@ public class GrokMatch extends AbstractProcessor {
 
     grok = new oi.thekraken.grok.api.Grok();
     try {
-      grok.addPatternFromFile("resources/grok-patterns.txt");
+      File patternFile = new File(getClass().getResource("/grok-patterns.txt").toURI());
+      grok.addPatternFromReader(new BufferedReader(new FileReader(patternFile)));
     } catch (GrokException e) {
       e.printStackTrace();
+    } catch (Exception e) {
+      e.printStackTrace();
     }
-
-
   }
 
   @Override
@@ -130,10 +138,7 @@ public class GrokMatch extends AbstractProcessor {
 
   @OnScheduled
   public void onScheduled(final ProcessContext context) {
-
-
     patternToMatch = context.getProperty(GROK_PATTERN_PROPERTY).getValue();
-
     try {
       grok.compile(patternToMatch);
     } catch (GrokException e) {
@@ -175,12 +180,12 @@ public class GrokMatch extends AbstractProcessor {
 
     final Match match = grok.match(contentString);
     match.captures();
-    logger.info("Match pattern = " + patternToMatch);
+    getLogger().info("Match pattern = " + patternToMatch);
 
     final Map<String, Object> matchMap = match.toMap();
 
     for (Map.Entry<String, Object> e : matchMap.entrySet()) {
-      logger.info("key = {}, value = {}",new Object[] {e.getKey(), e.getValue()});
+        getLogger().info("key = {}, value = {}",new Object[] {e.getKey(), e.getValue()});
     }
 
     if (!matchMap.isEmpty()) {
@@ -189,10 +194,10 @@ public class GrokMatch extends AbstractProcessor {
       }
       session.getProvenanceReporter().modifyAttributes(flowFile);
       session.transfer(flowFile, MATCHED_RELATIONSHIP);
-      logger.info("Matched grok pattern and added attributes");
+      getLogger().info("Matched grok pattern and added attributes");
     } else {
       session.transfer(flowFile, UNMATCHED_RELATIONSHIP);
-      logger.info("Could not match pattern");
+      getLogger().info("Could not match pattern");
 
     }
 

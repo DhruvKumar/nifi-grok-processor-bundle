@@ -16,13 +16,25 @@
  */
 package dhruv.nifi.processors;
 
+import java.io.InputStream;
+import java.util.function.Consumer;
+
+import org.apache.nifi.util.MockFlowFile;
 import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
 import org.junit.Before;
 import org.junit.Test;
 
-
 public class GrokMatchTest {
+
+    private static final String PATTERN = "%{SYSLOGTIMESTAMP:date} %{USERNAME:username} %{GREEDYDATA:data}";
+    private static final String PATTERN_KEY = "username";
+
+    private static final String matched_log = "/grok_matched.log";
+
+    private static final String unmatched_log = "/grok_unmatched.log";
+
+    private static final String TEST_MATCH_VALUE = "test";
 
     private TestRunner testRunner;
 
@@ -32,8 +44,29 @@ public class GrokMatchTest {
     }
 
     @Test
-    public void testProcessor() {
+    public void testMatchedResults() {
+        testRunner.setProperty(GrokMatch.GROK_PATTERN_PROPERTY, PATTERN);
+        InputStream resourceAsStream = GrokMatch.class.getResourceAsStream(matched_log);
+        testRunner.enqueue(resourceAsStream);
 
+        testRunner.run();
+
+        testRunner.assertAllFlowFilesTransferred(GrokMatch.MATCHED_RELATIONSHIP);
+        testRunner.assertTransferCount(GrokMatch.MATCHED_RELATIONSHIP, 1);
+        testRunner.getFlowFilesForRelationship(GrokMatch.MATCHED_RELATIONSHIP).forEach(new Consumer<MockFlowFile>() {
+            @Override
+            public void accept(MockFlowFile t) {
+                t.assertAttributeEquals(PATTERN_KEY, TEST_MATCH_VALUE);
+            }
+        });
+    }
+
+    @Test
+    public void testUnMatchedResults() {
+        testRunner.setProperty(GrokMatch.GROK_PATTERN_PROPERTY, PATTERN);
+        InputStream resourceAsStream = GrokMatch.class.getResourceAsStream(unmatched_log);
+        testRunner.enqueue(resourceAsStream);
+        testRunner.assertAllFlowFilesTransferred(GrokMatch.UNMATCHED_RELATIONSHIP);
     }
 
 }
