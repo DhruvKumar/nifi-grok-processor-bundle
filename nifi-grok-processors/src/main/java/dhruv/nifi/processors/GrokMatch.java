@@ -178,22 +178,21 @@ public class GrokMatch extends AbstractProcessor {
     logger.info("Match pattern = " + patternToMatch);
 
     final Map<String, Object> matchMap = match.toMap();
+    final Map<String, String> stringMap = Collections.emptyMap();
 
     for (Map.Entry<String, Object> e : matchMap.entrySet()) {
-      logger.info("key = {}, value = {}",new Object[] {e.getKey(), e.getValue()});
+        stringMap.put(e.getKey(), e.getValue().toString());
+        logger.info("key = {}, value = {}",new Object[] {e.getKey(), e.getValue()});
     }
 
     if (!matchMap.isEmpty()) {
-      for (Map.Entry<String, Object> e : matchMap.entrySet()) {
-        flowFile = session.putAttribute(flowFile, e.getKey(), e.getValue().toString());
-      }
+      flowFile = session.putAllAttributes(flowFile, stringMap); 
       session.getProvenanceReporter().modifyAttributes(flowFile);
       session.transfer(flowFile, MATCHED_RELATIONSHIP);
       logger.info("Matched grok pattern and added attributes");
     } else {
       session.transfer(flowFile, UNMATCHED_RELATIONSHIP);
       logger.info("Could not match pattern");
-
     }
 
   }
